@@ -1,11 +1,11 @@
 [Unit]
-Description=Screensaver Dashboard Server
+Description=HearthLoop Dashboard Server
 After=network.target
 
 [Service]
 Type=simple
 User=root
-WorkingDirectory=/opt/screensaver
+WorkingDirectory=/opt/hearthloop
 ExecStart=/usr/bin/node server.js
 Restart=always
 RestartSec=5

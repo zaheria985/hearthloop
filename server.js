@@ -136,5 +136,5 @@ app.post('/api/config', (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`Screensaver server running on port ${PORT}`);
+  console.log(`HearthLoop server running on port ${PORT}`);
 });

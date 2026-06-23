@@ -1,7 +1,7 @@
 {
-  "name": "screensaver",
+  "name": "hearthloop",
   "version": "1.0.0",
-  "description": "Home dashboard screensaver proxy server",
+  "description": "HearthLoop — a self-hosted wall-display dashboard (clock, calendar, weather, and a looping photo slideshow)",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"

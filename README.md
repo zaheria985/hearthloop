@@ -1,7 +1,7 @@
-# Screensaver Dashboard
+# HearthLoop
 
-A self-hosted wall-display / "screensaver" dashboard (a local DAKboard-style
-panel). It alternates between an **info screen** (clock, month calendar,
+A self-hosted wall-display dashboard — a local, DAKboard-inspired panel that
+loops through your home's day. It alternates between an **info screen** (clock, month calendar,
 weather, and an upcoming-events agenda) and a **photo slideshow** pulled from an
 [Immich](https://immich.app) album. A small Express server proxies the weather,
 calendar, and photo requests so your API keys stay server-side.
@@ -49,12 +49,12 @@ converts to milliseconds on save.)
 
 ## Running as a service
 
-`screensaver.service` is a sample systemd unit. Adjust `WorkingDirectory` /
+`hearthloop.service` is a sample systemd unit. Adjust `WorkingDirectory` /
 `ExecStart` to wherever you deploy, then:
 
 ```bash
-sudo cp screensaver.service /etc/systemd/system/
-sudo systemctl enable --now screensaver
+sudo cp hearthloop.service /etc/systemd/system/
+sudo systemctl enable --now hearthloop
 ```
 
 ## Layout
