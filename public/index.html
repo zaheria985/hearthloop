@@ -509,6 +509,23 @@ function getPhotoUrl(id) {
   return CONFIG.slideshow.highRes ? `/proxy/immich/original/${id}` : getThumbUrl(id);
 }
 
+// ── Preloading ──
+// Warm the browser cache with the upcoming photo so transitions don't stall
+// while a (possibly large, full-res) image downloads + decodes.
+const preloadCache = new Map();   // url -> Image (keeps the decoded image alive)
+function preloadUrl(url) {
+  if (preloadCache.has(url)) return;
+  const img = new Image();
+  img.src = url;
+  preloadCache.set(url, img);
+  if (preloadCache.size > 6) preloadCache.delete(preloadCache.keys().next().value);
+}
+function preloadNext() {
+  if (albumPhotos.length < 2) return;
+  const next = albumPhotos[(slideIndex + 1) % albumPhotos.length];
+  if (next) preloadUrl(getPhotoUrl(next.id));
+}
+
 // Normalise an Immich asset into what the slideshow needs.
 function mapAsset(a) {
   const ex = a.exifInfo || {};
@@ -573,6 +590,7 @@ async function loadImmich() {
       paintSlide('slide-a', albumPhotos[0]);
       restartKenBurns('slide-a');
       showCaption(albumPhotos[0]);
+      preloadNext();
     }
   } catch(e) { console.error('Immich error:', e); }
   hideLoading();
@@ -610,6 +628,7 @@ function nextSlide() {
   if (!albumPhotos.length) return;
   slideIndex = (slideIndex+1)%albumPhotos.length;
   showSlide(albumPhotos[slideIndex]);
+  preloadNext();
 }
 
 let progressRaf = null, progressStart = null;
