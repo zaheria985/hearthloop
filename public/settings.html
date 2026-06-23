@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard Settings</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500&family=Jost:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Jost', sans-serif;
+    background: #0a0a0a; color: #eee;
+    min-height: 100vh; padding: 40px 20px;
+    display: flex; justify-content: center;
+  }
+  .wrap { width: 100%; max-width: 640px; }
+  h1 {
+    font-family: 'Playfair Display', serif; font-weight: 400;
+    font-size: 32px; letter-spacing: 0.04em; margin-bottom: 4px;
+  }
+  .sub { opacity: 0.45; font-size: 14px; margin-bottom: 28px; }
+  fieldset {
+    border: 1px solid rgba(255,255,255,0.12); border-radius: 10px;
+    padding: 20px 22px; margin-bottom: 22px;
+  }
+  legend {
+    font-family: 'Playfair Display', serif; font-size: 18px;
+    padding: 0 10px; opacity: 0.85; letter-spacing: 0.03em;
+  }
+  label { display: block; margin: 14px 0 6px; font-size: 13px; opacity: 0.7; letter-spacing: 0.03em; }
+  label:first-of-type { margin-top: 4px; }
+  .hint { opacity: 0.4; font-size: 12px; font-weight: 300; }
+  input, select {
+    width: 100%; padding: 10px 12px;
+    background: rgba(255,255,255,0.05); color: #fff;
+    border: 1px solid rgba(255,255,255,0.14); border-radius: 7px;
+    font-family: inherit; font-size: 15px;
+  }
+  input:focus, select:focus { outline: none; border-color: rgba(255,255,255,0.45); }
+  .row { display: flex; gap: 14px; }
+  .row > div { flex: 1; }
+  .actions { display: flex; align-items: center; gap: 16px; margin-top: 8px; }
+  button {
+    background: #fff; color: #000; border: none; border-radius: 7px;
+    padding: 12px 28px; font-family: inherit; font-size: 15px;
+    letter-spacing: 0.05em; cursor: pointer; transition: opacity 0.2s;
+  }
+  button:hover { opacity: 0.85; }
+  button:disabled { opacity: 0.4; cursor: default; }
+  #status { font-size: 14px; opacity: 0; transition: opacity 0.3s; }
+  #status.show { opacity: 1; }
+  #status.ok { color: #7ee787; }
+  #status.err { color: #ff7b72; }
+  a.view { color: #8ab4ff; text-decoration: none; font-size: 14px; }
+  a.view:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Dashboard Settings</h1>
+  <div class="sub">Changes to photos, calendar &amp; weather apply immediately. Timing changes apply when the display reloads. &nbsp;·&nbsp; <a class="view" href="/">View dashboard →</a></div>
+
+  <form id="form">
+    <fieldset>
+      <legend>Photos (Immich)</legend>
+      <label>Immich base URL</label>
+      <input id="immich_base" placeholder="https://immich.example.com">
+      <label>API key <span class="hint">— kept server-side, never sent to the display</span></label>
+      <input id="immich_apiKey" placeholder="your immich api key">
+      <label>Album name <span class="hint">— which album to show as the slideshow</span></label>
+      <input id="immich_albumName" placeholder="Dashboard">
+    </fieldset>
+
+    <fieldset>
+      <legend>Calendar</legend>
+      <label>Published iCal (.ics) URL</label>
+      <input id="cal_icalUrl" placeholder="https://.../published.ics">
+    </fieldset>
+
+    <fieldset>
+      <legend>Weather</legend>
+      <div class="row">
+        <div><label>Latitude</label><input id="wx_latitude" type="number" step="any" placeholder="40.7128"></div>
+        <div><label>Longitude</label><input id="wx_longitude" type="number" step="any" placeholder="-74.006"></div>
+      </div>
+      <div class="row">
+        <div>
+          <label>Temperature unit</label>
+          <select id="wx_temperatureUnit">
+            <option value="fahrenheit">Fahrenheit (°F)</option>
+            <option value="celsius">Celsius (°C)</option>
+          </select>
+        </div>
+        <div>
+          <label>Wind unit</label>
+          <select id="wx_windSpeedUnit">
+            <option value="mph">mph</option>
+            <option value="kmh">km/h</option>
+            <option value="ms">m/s</option>
+            <option value="kn">knots</option>
+          </select>
+        </div>
+      </div>
+      <label>Timezone <span class="hint">— IANA name, e.g. America/Chicago</span></label>
+      <input id="wx_timezone" placeholder="America/Chicago">
+    </fieldset>
+
+    <fieldset>
+      <legend>Display timing <span class="hint" style="font-size:13px">(seconds)</span></legend>
+      <div class="row">
+        <div><label>Info screen duration</label><input id="disp_infoDuration" type="number" min="1" placeholder="60"></div>
+        <div><label>Slideshow duration</label><input id="disp_slideshowDuration" type="number" min="1" placeholder="180"></div>
+      </div>
+      <div class="row">
+        <div><label>Seconds per photo</label><input id="disp_slideInterval" type="number" min="1" placeholder="8"></div>
+        <div><label>Background change</label><input id="disp_bgChangeInterval" type="number" min="1" placeholder="30"></div>
+      </div>
+    </fieldset>
+
+    <div class="actions">
+      <button type="submit" id="saveBtn">Save settings</button>
+      <span id="status"></span>
+    </div>
+  </form>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+
+// Map form field id -> [config section, key]. Display timings are seconds in
+// the form but stored as milliseconds.
+const FIELDS = {
+  immich_base:        ['immich', 'base'],
+  immich_apiKey:      ['immich', 'apiKey'],
+  immich_albumName:   ['immich', 'albumName'],
+  cal_icalUrl:        ['calendar', 'icalUrl'],
+  wx_latitude:        ['weather', 'latitude'],
+  wx_longitude:       ['weather', 'longitude'],
+  wx_temperatureUnit: ['weather', 'temperatureUnit'],
+  wx_windSpeedUnit:   ['weather', 'windSpeedUnit'],
+  wx_timezone:        ['weather', 'timezone'],
+  disp_infoDuration:      ['display', 'infoDuration'],
+  disp_slideshowDuration: ['display', 'slideshowDuration'],
+  disp_slideInterval:     ['display', 'slideInterval'],
+  disp_bgChangeInterval:  ['display', 'bgChangeInterval'],
+};
+const MS_FIELDS = new Set(['disp_infoDuration','disp_slideshowDuration','disp_slideInterval','disp_bgChangeInterval']);
+const NUM_FIELDS = new Set(['wx_latitude','wx_longitude']);
+
+function setStatus(msg, kind) {
+  const el = $('status');
+  el.textContent = msg;
+  el.className = 'show ' + (kind || '');
+  if (kind === 'ok') setTimeout(() => el.classList.remove('show'), 3000);
+}
+
+async function load() {
+  try {
+    const cfg = await fetch('/api/config').then(r => r.json());
+    for (const [id, [sec, key]] of Object.entries(FIELDS)) {
+      let v = (cfg[sec] || {})[key];
+      if (v === undefined || v === null) continue;
+      if (MS_FIELDS.has(id)) v = Math.round(v / 1000);
+      $(id).value = v;
+    }
+  } catch (e) {
+    setStatus('Could not load current settings', 'err');
+  }
+}
+
+$('form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const cfg = { immich: {}, calendar: {}, weather: {}, display: {} };
+  for (const [id, [sec, key]] of Object.entries(FIELDS)) {
+    let raw = $(id).value.trim();
+    let v = raw;
+    if (MS_FIELDS.has(id)) v = Math.max(1, Number(raw || 0)) * 1000;
+    else if (NUM_FIELDS.has(id)) v = Number(raw);
+    cfg[sec][key] = v;
+  }
+  $('saveBtn').disabled = true;
+  setStatus('Saving…', '');
+  try {
+    const res = await fetch('/api/config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(cfg),
+    });
+    if (!res.ok) throw new Error('save failed');
+    setStatus('Saved ✓', 'ok');
+  } catch (err) {
+    setStatus('Save failed — ' + err.message, 'err');
+  } finally {
+    $('saveBtn').disabled = false;
+  }
+});
+
+load();
+</script>
+</body>
+</html>

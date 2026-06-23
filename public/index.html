@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Home Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;700&family=Jost:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html, body {
+    width: 100%; height: 100%;
+    overflow: hidden;
+    background: #000;
+    font-family: 'Jost', sans-serif;
+    color: #fff;
+  }
+
+  #screen-info, #screen-slideshow {
+    position: fixed; inset: 0;
+    transition: opacity 1.2s ease;
+  }
+  #screen-slideshow { opacity: 0; pointer-events: none; }
+  body.slideshow #screen-info      { opacity: 0; pointer-events: none; }
+  body.slideshow #screen-slideshow { opacity: 1; pointer-events: auto; }
+
+  #bg, #bg-next {
+    position: absolute; inset: 0;
+    background-size: cover; background-position: center;
+    filter: brightness(0.38) saturate(0.85);
+  }
+  #bg-next { opacity: 0; transition: opacity 1.5s ease; }
+
+  #screen-info::after {
+    content: ''; position: absolute; inset: 0;
+    background: radial-gradient(ellipse at center, transparent 40%, rgba(0,0,0,0.55) 100%);
+    pointer-events: none; z-index: 1;
+  }
+
+  /* TWO-COLUMN GRID — portrait-optimised */
+  #info-content {
+    position: relative; z-index: 2;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr;
+    height: 100%;
+    padding: 5vw 5vw;
+    gap: 0 4vw;
+  }
+
+  #left-col {
+    grid-column: 1; grid-row: 1 / 4;
+    display: flex; flex-direction: column; justify-content: flex-start;
+    gap: 5vw;
+    min-width: 0; overflow: hidden;
+  }
+
+  /* ── CLOCK ──
+     Root cause of the original mess: 12vmax on a portrait screen
+     equals 12% of the HEIGHT (~230 px), not the width.
+     Switching to vw keeps the clock proportional to column width. */
+  #clock-wrap { line-height: 1; }
+  #clock-time {
+    font-family: 'Playfair Display', serif;
+    font-weight: 400;
+    font-size: 12vw;          /* was 12vmax — now sane in portrait */
+    letter-spacing: -2px;
+    display: flex; align-items: flex-start; gap: 4px;
+    margin-bottom: 2vw;
+  }
+  #clock-seconds {
+    font-size: 4vw;            /* was 0.45em of 12vmax ≈ 5.4vmax = 104 px */
+    font-weight: 400; opacity: 0.7;
+    margin-top: 1.5vw;
+  }
+  #clock-date {
+    font-weight: 400;
+    font-size: 3vw;            /* was 2vmax = 38 px in portrait — kept roughly same */
+    letter-spacing: 0.18em; text-transform: uppercase;
+    opacity: 0.65; margin-top: 0.5vw;
+  }
+
+  /* ── CALENDAR ── */
+  #cal-month-label {
+    font-family: 'Playfair Display', serif;
+    font-size: 3.2vw;          /* was 2.8vmax */
+    font-weight: 400; letter-spacing: 0.12em; text-transform: uppercase;
+    opacity: 0.75; margin-bottom: 1.2vw;
+  }
+  #cal-grid {
+    display: grid; grid-template-columns: repeat(7, 1fr);
+    gap: 0.3vw 0;
+    font-size: 2.5vw;          /* was 1.8vmax */
+    font-weight: 400;
+  }
+  .cal-dow {
+    text-align: center; opacity: 0.45; font-weight: 400;
+    letter-spacing: 0.06em; padding-bottom: 0.8vw; font-size: 0.85em;
+  }
+  .cal-day {
+    text-align: center; border-radius: 50%;
+    width: 4vw; height: 4vw; line-height: 4vw; margin: 0 auto; opacity: 0.7;
+  }
+  .cal-day.other-month { opacity: 0.2; }
+  .cal-day.today { background: #fff; color: #000; opacity: 1; font-weight: 400; }
+
+  /* ── WEATHER ── */
+  #weather-current { display: flex; align-items: center; gap: 2vw; margin-bottom: 2vw; }
+  #weather-icon-main { font-size: 4.5vw; }        /* was 3vmax */
+  #weather-temp-main {
+    font-family: 'Playfair Display', serif;
+    font-size: 8vw;            /* was 5vmax */
+    font-weight: 400; line-height: 1;
+  }
+  #weather-desc {
+    font-weight: 400; font-size: 2.2vw; opacity: 0.6; /* was 1.1vmax */
+    letter-spacing: 0.05em; margin-top: 0.3vw;
+  }
+
+  #weather-forecast { display: flex; gap: 1vw; margin-bottom: 1.5vw; }
+  .fc-day {
+    flex: 1; text-align: center;
+    background: rgba(255,255,255,0.07); border-radius: 8px; padding: 1.2vw 0.5vw;
+  }
+  .fc-day-name  { font-size: 1.6vw; opacity: 0.5; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 0.4vw; }
+  .fc-day-icon  { font-size: 2.5vw; margin-bottom: 0.4vw; }
+  .fc-day-rain  { font-size: 1.4vw; opacity: 0.55; margin-bottom: 0.2vw; }
+  .fc-day-temp  { font-size: 1.6vw; font-weight: 400; }
+
+  #weather-hourly { display: flex; gap: 0.5vw; overflow: hidden; }
+  .hr-slot { flex: 1; text-align: center; opacity: 0.6; }
+  .hr-slot-time { font-size: 1.4vw; margin-bottom: 0.2vw; opacity: 0.7; }
+  .hr-slot-icon { font-size: 2vw;   margin-bottom: 0.2vw; }
+  .hr-slot-rain { font-size: 1.3vw; margin-bottom: 0.1vw; }
+  .hr-slot-temp { font-size: 1.4vw; }
+
+  /* ── RIGHT COLUMN / AGENDA ──
+     The old clamp() values capped text at 13–14 px — unreadable on a big TV.
+     Plain vw values let it scale properly. */
+  #right-col {
+    grid-column: 2; grid-row: 1 / 4;
+    display: flex; flex-direction: column; overflow: hidden;
+    min-width: 0;
+  }
+  #agenda-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 3.5vw;          /* was clamp(16px, 1.8vw, 22px) → max 22 px! */
+    font-weight: 400;
+    letter-spacing: 0.14em; text-transform: uppercase;
+    opacity: 0.5; margin-bottom: 2vw;
+  }
+  #agenda-list { flex: 1; overflow: hidden; display: flex; flex-direction: column; gap: 0; }
+  .agenda-day-block { margin-bottom: 2.5vw; }
+  .agenda-day-header {
+    display: flex; align-items: baseline; gap: 1.5vw;
+    margin-bottom: 1vw;
+    border-bottom: 1px solid rgba(255,255,255,0.12); padding-bottom: 0.5vw;
+  }
+  .agenda-day-num {
+    font-family: 'Playfair Display', serif;
+    font-size: 5.5vw;          /* was clamp(24px, 2.8vw, 36px) → max 36 px! */
+    font-weight: 400; line-height: 1; opacity: 0.9;
+  }
+  .agenda-day-name {
+    font-size: 2.5vw;          /* was clamp(11px, 1.2vw, 14px) → max 14 px! */
+    font-weight: 400;
+    letter-spacing: 0.1em; text-transform: uppercase; opacity: 0.55;
+  }
+  .agenda-event { display: flex; gap: 1.5vw; align-items: flex-start; padding: 0.4vw 0; }
+  .agenda-event-time {
+    font-size: 2.2vw;          /* was clamp(10px, 1.1vw, 13px) → max 13 px! */
+    opacity: 0.5;
+    white-space: nowrap; min-width: 10vw; font-weight: 400; padding-top: 0.2vw;
+  }
+  .agenda-event-bar {
+    width: 2px; min-height: 2.5vw; background: rgba(255,255,255,0.4);
+    border-radius: 2px; flex-shrink: 0; margin-top: 0.4vw;
+  }
+  .agenda-event-title {
+    font-size: 2.5vw;          /* was clamp(11px, 1.25vw, 15px) → max 15 px! */
+    font-weight: 400; line-height: 1.35; opacity: 0.85;
+  }
+
+  /* ── SLIDESHOW ── */
+  #slide-bg, #slide-bg-next {
+    position: absolute; inset: 0;
+    background-size: cover; background-position: center;
+  }
+  #slide-bg-next { opacity: 0; transition: opacity 1.5s ease; }
+  #slide-overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.08); }
+
+  #progress-bar {
+    position: fixed; bottom: 0; left: 0; height: 2px;
+    background: rgba(255,255,255,0.4); width: 0%; z-index: 100;
+  }
+
+  #loading {
+    position: fixed; inset: 0; background: #0a0a0a;
+    display: flex; align-items: center; justify-content: center;
+    z-index: 999; transition: opacity 1s ease;
+    font-family: 'Playfair Display', serif;
+    font-size: 24px; font-weight: 300; letter-spacing: 0.2em; opacity: 0.6;
+  }
+</style>
+</head>
+<body>
+
+<div id="loading">loading…</div>
+<div id="progress-bar"></div>
+
+<div id="screen-info">
+  <div id="bg"></div>
+  <div id="bg-next"></div>
+  <div id="info-content">
+    <div id="left-col">
+      <div id="clock-wrap">
+        <div id="clock-time">
+          <span id="clock-hm">12:00</span>
+          <span id="clock-seconds">00</span>
+        </div>
+        <div id="clock-date">Loading…</div>
+      </div>
+      <div id="cal-wrap">
+        <div id="cal-month-label"></div>
+        <div id="cal-grid"></div>
+      </div>
+      <div id="weather-wrap">
+        <div id="weather-current">
+          <div id="weather-icon-main">⛅</div>
+          <div>
+            <div id="weather-temp-main">--°</div>
+            <div id="weather-desc">Loading…</div>
+          </div>
+        </div>
+        <div id="weather-forecast"></div>
+        <div id="weather-hourly"></div>
+      </div>
+    </div>
+    <div id="right-col">
+      <div id="agenda-title">Upcoming</div>
+      <div id="agenda-list"></div>
+    </div>
+  </div>
+</div>
+
+<div id="screen-slideshow">
+  <div id="slide-bg"></div>
+  <div id="slide-bg-next"></div>
+  <div id="slide-overlay"></div>
+</div>
+
+<script>
+// Defaults — overridden at startup by /api/client-config (set via /settings).
+const CONFIG = {
+  immichAlbumName: '',
+  infoDuration: 60 * 1000,
+  slideshowDuration: 3 * 60 * 1000,
+  slideInterval: 8 * 1000,
+  bgChangeInterval: 30 * 1000,
+};
+
+let albumPhotos = [], bgPhotos = [];
+let slideIndex = 0, bgRotateIndex = 1;
+let slideTimer = null, modeTimer = null;
+
+const pad = n => String(n).padStart(2,'0');
+const DAYS_FULL = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+const DAYS_SHORT = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+function fmt12(h, m) { return `${h % 12 || 12}:${pad(m)} ${h >= 12 ? 'PM' : 'AM'}`; }
+
+function weatherCode(wmo) {
+  if (wmo === 0) return { icon: '☀️', desc: 'Clear' };
+  if (wmo <= 2)  return { icon: '⛅', desc: 'Partly Cloudy' };
+  if (wmo <= 3)  return { icon: '☁️', desc: 'Overcast' };
+  if (wmo <= 49) return { icon: '🌫️', desc: 'Foggy' };
+  if (wmo <= 55) return { icon: '🌦️', desc: 'Drizzle' };
+  if (wmo <= 67) return { icon: '🌧️', desc: 'Rain' };
+  if (wmo <= 77) return { icon: '❄️', desc: 'Snow' };
+  if (wmo <= 82) return { icon: '🌧️', desc: 'Showers' };
+  if (wmo <= 99) return { icon: '⛈️', desc: 'Thunderstorm' };
+  return { icon: '🌡️', desc: '' };
+}
+
+function updateClock() {
+  const now = new Date();
+  document.getElementById('clock-hm').textContent = `${now.getHours() % 12 || 12}:${pad(now.getMinutes())}`;
+  document.getElementById('clock-seconds').textContent = pad(now.getSeconds());
+  document.getElementById('clock-date').textContent =
+    `${DAYS_FULL[now.getDay()]}, ${MONTHS[now.getMonth()]} ${now.getDate()}`;
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+function buildCalendar() {
+  const now = new Date();
+  const year = now.getFullYear(), month = now.getMonth(), today = now.getDate();
+  const firstDay = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const daysInPrev = new Date(year, month, 0).getDate();
+  document.getElementById('cal-month-label').textContent = `${MONTHS[month]} ${year}`;
+  const grid = document.getElementById('cal-grid');
+  grid.innerHTML = '';
+  ['S','M','T','W','T','F','S'].forEach(d => {
+    const el = document.createElement('div'); el.className = 'cal-dow'; el.textContent = d; grid.appendChild(el);
+  });
+  for (let i = 0; i < firstDay; i++) {
+    const el = document.createElement('div'); el.className = 'cal-day other-month';
+    el.textContent = daysInPrev - firstDay + 1 + i; grid.appendChild(el);
+  }
+  for (let d = 1; d <= daysInMonth; d++) {
+    const el = document.createElement('div');
+    el.className = 'cal-day' + (d === today ? ' today' : '');
+    el.textContent = d; grid.appendChild(el);
+  }
+  for (let i = 1; i <= 42 - firstDay - daysInMonth; i++) {
+    const el = document.createElement('div'); el.className = 'cal-day other-month'; el.textContent = i; grid.appendChild(el);
+  }
+}
+buildCalendar();
+
+async function loadWeather() {
+  try {
+    const res = await fetch('/proxy/weather');
+    const data = await res.json();
+    const curW = weatherCode(data.current.weathercode);
+    document.getElementById('weather-temp-main').textContent = `${Math.round(data.current.temperature_2m)}°`;
+    document.getElementById('weather-icon-main').textContent = curW.icon;
+    document.getElementById('weather-desc').textContent = curW.desc;
+    const fc = document.getElementById('weather-forecast');
+    fc.innerHTML = '';
+    for (let i = 0; i < 5; i++) {
+      const date = new Date(data.daily.time[i] + 'T12:00:00');
+      const w = weatherCode(data.daily.weathercode[i]);
+      fc.innerHTML += `<div class="fc-day"><div class="fc-day-name">${i===0?'Today':DAYS_SHORT[date.getDay()]}</div><div class="fc-day-icon">${w.icon}</div><div class="fc-day-rain">💧${data.daily.precipitation_probability_max[i]}%</div><div class="fc-day-temp">${Math.round(data.daily.temperature_2m_max[i])}°/${Math.round(data.daily.temperature_2m_min[i])}°</div></div>`;
+    }
+    const hourly = document.getElementById('weather-hourly');
+    hourly.innerHTML = '';
+    const now = new Date(); let count = 0;
+    for (let i = 0; i < data.hourly.time.length && count < 8; i++) {
+      const t = new Date(data.hourly.time[i] + ':00');
+      if (t <= now) continue;
+      const w = weatherCode(data.hourly.weathercode[i]);
+      hourly.innerHTML += `<div class="hr-slot"><div class="hr-slot-time">${t.getHours()%12||12}${t.getHours()>=12?'pm':'am'}</div><div class="hr-slot-icon">${w.icon}</div><div class="hr-slot-rain">💧${data.hourly.precipitation_probability[i]}%</div><div class="hr-slot-temp">${Math.round(data.hourly.temperature_2m[i])}°</div></div>`;
+      count++;
+    }
+  } catch(e) { console.error('Weather error:', e); }
+}
+loadWeather();
+setInterval(loadWeather, 15 * 60 * 1000);
+
+function parseIcal(text) {
+  const events = [];
+  const blocks = text.split('BEGIN:VEVENT');
+  for (let i = 1; i < blocks.length; i++) {
+    const block = blocks[i];
+    const getVal = key => { const m = block.match(new RegExp(`${key}[^:]*:([^\r\n]+)`)); return m ? m[1].trim() : null; };
+    const summary = getVal('SUMMARY') || '';
+    const dtstart = getVal('DTSTART');
+    if (!dtstart) continue;
+    const parseDate = s => {
+      if (/^\d{8}$/.test(s)) return { allDay: true, date: new Date(+s.slice(0,4), +s.slice(4,6)-1, +s.slice(6,8)) };
+      const m = s.match(/(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})(Z?)/);
+      if (m) { const d = m[7]==='Z' ? new Date(Date.UTC(+m[1],+m[2]-1,+m[3],+m[4],+m[5],+m[6])) : new Date(+m[1],+m[2]-1,+m[3],+m[4],+m[5],+m[6]); return { allDay: false, date: d }; }
+      return null;
+    };
+    const start = parseDate(dtstart);
+    if (!start) continue;
+    events.push({ summary, start, allDay: start.allDay });
+  }
+  return events;
+}
+
+async function loadCalendar() {
+  try {
+    const res = await fetch('/proxy/ical');
+    const text = await res.text();
+    const events = parseIcal(text);
+    const now = new Date(); now.setHours(0,0,0,0);
+    const cutoff = new Date(now); cutoff.setDate(cutoff.getDate() + 14);
+    const upcoming = events.filter(e => e.start.date >= now && e.start.date < cutoff).sort((a,b) => a.start.date - b.start.date);
+    const byDay = {};
+    upcoming.forEach(e => { const key = e.start.date.toDateString(); if (!byDay[key]) byDay[key] = { date: e.start.date, events: [] }; byDay[key].events.push(e); });
+    const list = document.getElementById('agenda-list');
+    list.innerHTML = '';
+    const todayStr = new Date().toDateString();
+    const tomorrowStr = new Date(Date.now() + 86400000).toDateString();
+    Object.values(byDay).forEach(({ date, events }) => {
+      const ds = date.toDateString();
+      const label = ds===todayStr ? 'Today' : ds===tomorrowStr ? 'Tomorrow' : DAYS_FULL[date.getDay()];
+      const block = document.createElement('div'); block.className = 'agenda-day-block';
+      block.innerHTML = `<div class="agenda-day-header"><span class="agenda-day-num">${date.getDate()}</span><span class="agenda-day-name">${label}</span></div>`;
+      events.forEach(e => {
+        const timeStr = e.allDay ? 'All day' : fmt12(e.start.date.getHours(), e.start.date.getMinutes());
+        block.innerHTML += `<div class="agenda-event"><div class="agenda-event-time">${timeStr}</div><div class="agenda-event-bar"></div><div class="agenda-event-title">${e.summary}</div></div>`;
+      });
+      list.appendChild(block);
+    });
+    if (!Object.keys(byDay).length) list.innerHTML = '<div style="opacity:0.35;font-weight:200;font-size:14px;">No upcoming events</div>';
+  } catch(e) { document.getElementById('agenda-list').innerHTML = '<div style="opacity:0.3;font-size:13px;">Calendar unavailable</div>'; }
+}
+loadCalendar();
+setInterval(loadCalendar, 10 * 60 * 1000);
+
+function getThumbUrl(id) { return `/proxy/immich/thumbnail/${id}?size=preview`; }
+
+function setInfoBg(id) {
+  const url = getThumbUrl(id);
+  const next = document.getElementById('bg-next');
+  next.style.backgroundImage = `url(${url})`; next.style.opacity = '1';
+  setTimeout(() => { document.getElementById('bg').style.backgroundImage = `url(${url})`; next.style.opacity = '0'; }, 1600);
+}
+
+async function loadImmich() {
+  try {
+    const r1 = await fetch('/proxy/immich/albums');
+    const albums = await r1.json();
+    const album = albums.find(a => a.albumName === CONFIG.immichAlbumName);
+    if (!album) { hideLoading(); return; }
+    const r2 = await fetch(`/proxy/immich/albums/${album.id}`);
+    const data = await r2.json();
+    albumPhotos = (data.assets||[]).filter(a => a.type==='IMAGE').map(a => a.id);
+    albumPhotos.sort(() => Math.random() - 0.5);
+    bgPhotos = [...albumPhotos].sort(() => Math.random() - 0.5);
+    if (albumPhotos.length) { setInfoBg(bgPhotos[0]); document.getElementById('slide-bg').style.backgroundImage = `url(${getThumbUrl(albumPhotos[0])})`; }
+  } catch(e) { console.error('Immich error:', e); }
+  hideLoading();
+}
+
+function hideLoading() { const el = document.getElementById('loading'); el.style.opacity = '0'; setTimeout(() => el.style.display = 'none', 1000); }
+
+function nextSlide() {
+  if (!albumPhotos.length) return;
+  slideIndex = (slideIndex+1)%albumPhotos.length;
+  const url = getThumbUrl(albumPhotos[slideIndex]);
+  const next = document.getElementById('slide-bg-next');
+  next.style.backgroundImage = `url(${url})`; next.style.opacity = '1';
+  setTimeout(() => { document.getElementById('slide-bg').style.backgroundImage = `url(${url})`; next.style.opacity = '0'; }, 1600);
+}
+
+let progressRaf = null, progressStart = null;
+function animateProgress(duration) {
+  cancelAnimationFrame(progressRaf); progressStart = performance.now();
+  const bar = document.getElementById('progress-bar'); bar.style.width = '0%';
+  function step(now) { const pct = Math.min(((now-progressStart)/duration)*100,100); bar.style.width = pct+'%'; if (pct<100) progressRaf = requestAnimationFrame(step); }
+  requestAnimationFrame(step);
+}
+
+function switchToSlideshow() { document.body.classList.add('slideshow'); slideTimer = setInterval(nextSlide, CONFIG.slideInterval); animateProgress(CONFIG.slideshowDuration); modeTimer = setTimeout(switchToInfo, CONFIG.slideshowDuration); }
+function switchToInfo() { document.body.classList.remove('slideshow'); clearInterval(slideTimer); loadCalendar(); animateProgress(CONFIG.infoDuration); modeTimer = setTimeout(switchToSlideshow, CONFIG.infoDuration); }
+
+async function bootstrap() {
+  // Pull live settings (album name + timings) from the server before starting.
+  try {
+    const c = await fetch('/api/client-config').then(r => r.json());
+    Object.assign(CONFIG, c);
+  } catch (e) {
+    console.warn('client-config load failed, using defaults:', e);
+  }
+  // Rotate the info-screen background on the configured interval.
+  setInterval(() => {
+    if (bgPhotos.length < 2) return;
+    bgRotateIndex = (bgRotateIndex + 1) % bgPhotos.length;
+    setInfoBg(bgPhotos[bgRotateIndex]);
+  }, CONFIG.bgChangeInterval);
+
+  await loadImmich();
+  animateProgress(CONFIG.infoDuration);
+  modeTimer = setTimeout(switchToSlideshow, CONFIG.infoDuration);
+}
+bootstrap();
+</script>
+</body>
+</html>

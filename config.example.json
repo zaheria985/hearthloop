@@ -1,0 +1,23 @@
+{
+  "immich": {
+    "base": "https://immich.example.com",
+    "apiKey": "YOUR_IMMICH_API_KEY",
+    "albumName": "Dashboard"
+  },
+  "calendar": {
+    "icalUrl": "https://example.com/path/to/your/published.ics"
+  },
+  "weather": {
+    "latitude": 40.7128,
+    "longitude": -74.006,
+    "temperatureUnit": "fahrenheit",
+    "windSpeedUnit": "mph",
+    "timezone": "America/New_York"
+  },
+  "display": {
+    "infoDuration": 60000,
+    "slideshowDuration": 180000,
+    "slideInterval": 8000,
+    "bgChangeInterval": 30000
+  }
+}
