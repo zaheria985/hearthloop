@@ -183,13 +183,23 @@
     font-weight: 400; line-height: 1.35; opacity: 0.85;
   }
 
-  /* ── SLIDESHOW ── */
-  #slide-bg, #slide-bg-next {
+  /* ── SLIDESHOW ──
+     Two crossfading layers (A/B). Each layer shows the photo in full via
+     `contain` (so landscape and portrait both display whole, never cropped),
+     over a blurred, zoomed `cover` copy of the same photo that fills the
+     leftover space instead of black bars. */
+  .slide { position: absolute; inset: 0; transition: opacity 1.5s ease; }
+  #slide-b { opacity: 0; }
+  .slide-fill {
     position: absolute; inset: 0;
-    background-size: cover; background-position: center;
+    background-size: cover; background-position: center; background-repeat: no-repeat;
+    filter: blur(28px) brightness(0.55); transform: scale(1.12);
   }
-  #slide-bg-next { opacity: 0; transition: opacity 1.5s ease; }
-  #slide-overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.08); }
+  .slide-photo {
+    position: absolute; inset: 0;
+    background-size: contain; background-position: center; background-repeat: no-repeat;
+  }
+  #slide-overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.08); pointer-events: none; }
 
   #progress-bar {
     position: fixed; bottom: 0; left: 0; height: 2px;
@@ -246,8 +256,8 @@
 </div>
 
 <div id="screen-slideshow">
-  <div id="slide-bg"></div>
-  <div id="slide-bg-next"></div>
+  <div class="slide" id="slide-a"><div class="slide-fill"></div><div class="slide-photo"></div></div>
+  <div class="slide" id="slide-b"><div class="slide-fill"></div><div class="slide-photo"></div></div>
   <div id="slide-overlay"></div>
 </div>
 
@@ -425,20 +435,32 @@ async function loadImmich() {
     albumPhotos = (data.assets||[]).filter(a => a.type==='IMAGE').map(a => a.id);
     albumPhotos.sort(() => Math.random() - 0.5);
     bgPhotos = [...albumPhotos].sort(() => Math.random() - 0.5);
-    if (albumPhotos.length) { setInfoBg(bgPhotos[0]); document.getElementById('slide-bg').style.backgroundImage = `url(${getThumbUrl(albumPhotos[0])})`; }
+    if (albumPhotos.length) { setInfoBg(bgPhotos[0]); paintSlide('slide-a', getThumbUrl(albumPhotos[0])); }
   } catch(e) { console.error('Immich error:', e); }
   hideLoading();
 }
 
 function hideLoading() { const el = document.getElementById('loading'); el.style.opacity = '0'; setTimeout(() => el.style.display = 'none', 1000); }
 
+let slideActive = 'a';
+function paintSlide(layerId, url) {
+  const layer = document.getElementById(layerId);
+  layer.querySelector('.slide-fill').style.backgroundImage = `url(${url})`;
+  layer.querySelector('.slide-photo').style.backgroundImage = `url(${url})`;
+}
+function showSlide(url) {
+  const incoming = slideActive === 'a' ? 'slide-b' : 'slide-a';
+  const outgoing = slideActive === 'a' ? 'slide-a' : 'slide-b';
+  paintSlide(incoming, url);
+  document.getElementById(incoming).style.opacity = '1';
+  document.getElementById(outgoing).style.opacity = '0';
+  slideActive = slideActive === 'a' ? 'b' : 'a';
+}
+
 function nextSlide() {
   if (!albumPhotos.length) return;
   slideIndex = (slideIndex+1)%albumPhotos.length;
-  const url = getThumbUrl(albumPhotos[slideIndex]);
-  const next = document.getElementById('slide-bg-next');
-  next.style.backgroundImage = `url(${url})`; next.style.opacity = '1';
-  setTimeout(() => { document.getElementById('slide-bg').style.backgroundImage = `url(${url})`; next.style.opacity = '0'; }, 1600);
+  showSlide(getThumbUrl(albumPhotos[slideIndex]));
 }
 
 let progressRaf = null, progressStart = null;
