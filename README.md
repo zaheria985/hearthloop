@@ -62,6 +62,10 @@ You can edit settings two ways:
 |            | `slideshowDuration`| ms to run the slideshow before returning to info   |
 |            | `slideInterval`    | ms per photo in the slideshow                      |
 |            | `bgChangeInterval` | ms between background swaps on the info screen      |
+| `slideshow`| `kenBurns`         | Slow cinematic pan/zoom on each photo (on/off)     |
+|            | `onThisDay`        | Show photos from today's date in past years (Immich memories); falls back to the album |
+|            | `captions`         | Faint date/place caption per photo from EXIF       |
+|            | `highRes`          | Serve full-resolution originals instead of previews |
 
 (The settings page shows the `display` values in **seconds** for convenience and
 converts to milliseconds on save.)

@@ -199,7 +199,19 @@
     position: absolute; inset: 0;
     background-size: contain; background-position: center; background-repeat: no-repeat;
   }
+  /* Ken Burns — applied per-slide via inline animation when enabled. */
+  @keyframes kenburns { from { transform: scale(1); } to { transform: scale(1.12); } }
   #slide-overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.08); pointer-events: none; }
+
+  /* Date / place caption (optional). */
+  #slide-caption {
+    position: absolute; left: 4vw; bottom: 4vw; z-index: 50;
+    font-family: 'Jost', sans-serif; font-weight: 300;
+    font-size: 2.2vw; letter-spacing: 0.06em;
+    color: rgba(255,255,255,0.92);
+    text-shadow: 0 2px 12px rgba(0,0,0,0.7);
+    opacity: 0; transition: opacity 1.2s ease; pointer-events: none;
+  }
 
   #progress-bar {
     position: fixed; bottom: 0; left: 0; height: 2px;
@@ -259,6 +271,7 @@
   <div class="slide" id="slide-a"><div class="slide-fill"></div><div class="slide-photo"></div></div>
   <div class="slide" id="slide-b"><div class="slide-fill"></div><div class="slide-photo"></div></div>
   <div id="slide-overlay"></div>
+  <div id="slide-caption"></div>
 </div>
 
 <script>
@@ -269,6 +282,7 @@ const CONFIG = {
   slideshowDuration: 3 * 60 * 1000,
   slideInterval: 8 * 1000,
   bgChangeInterval: 30 * 1000,
+  slideshow: { kenBurns: false, onThisDay: false, captions: false, highRes: false },
 };
 
 let albumPhotos = [], bgPhotos = [];
@@ -416,6 +430,32 @@ loadCalendar();
 setInterval(loadCalendar, 10 * 60 * 1000);
 
 function getThumbUrl(id) { return `/proxy/immich/thumbnail/${id}?size=preview`; }
+// Foreground photo: full-resolution original when highRes is on, else preview.
+function getPhotoUrl(id) {
+  return CONFIG.slideshow.highRes ? `/proxy/immich/original/${id}` : getThumbUrl(id);
+}
+
+// Normalise an Immich asset into what the slideshow needs.
+function mapAsset(a) {
+  const ex = a.exifInfo || {};
+  const when = a.localDateTime || a.fileCreatedAt || ex.dateTimeOriginal;
+  const place = [ex.city, ex.country].filter(Boolean).join(', ');
+  return { id: a.id, date: when ? new Date(when) : null, place };
+}
+
+function captionFor(asset) {
+  if (!CONFIG.slideshow.captions || !asset) return '';
+  const parts = [];
+  if (asset.date && !isNaN(asset.date)) parts.push(asset.date.toLocaleDateString(undefined, { month: 'long', year: 'numeric' }));
+  if (asset.place) parts.push(asset.place);
+  return parts.join(' · ');
+}
+function showCaption(asset) {
+  const cap = document.getElementById('slide-caption');
+  const text = captionFor(asset);
+  cap.textContent = text;
+  cap.style.opacity = text ? '1' : '0';
+}
 
 function setInfoBg(id) {
   const url = getThumbUrl(id);
@@ -424,18 +464,42 @@ function setInfoBg(id) {
   setTimeout(() => { document.getElementById('bg').style.backgroundImage = `url(${url})`; next.style.opacity = '0'; }, 1600);
 }
 
+// "On This Day": pull today's memory-lane assets from across the whole library.
+async function loadMemories() {
+  try {
+    const r = await fetch('/proxy/immich/memories');
+    if (!r.ok) return [];
+    const mems = await r.json();
+    const out = [];
+    (Array.isArray(mems) ? mems : []).forEach(m =>
+      (m.assets || []).forEach(a => { if (a.type === 'IMAGE') out.push(mapAsset(a)); }));
+    return out;
+  } catch (e) { console.warn('memories load failed:', e); return []; }
+}
+
+async function loadAlbum() {
+  const r1 = await fetch('/proxy/immich/albums');
+  const albums = await r1.json();
+  const album = albums.find(a => a.albumName === CONFIG.immichAlbumName);
+  if (!album) return [];
+  const r2 = await fetch(`/proxy/immich/albums/${album.id}`);
+  const data = await r2.json();
+  return (data.assets || []).filter(a => a.type === 'IMAGE').map(mapAsset);
+}
+
 async function loadImmich() {
   try {
-    const r1 = await fetch('/proxy/immich/albums');
-    const albums = await r1.json();
-    const album = albums.find(a => a.albumName === CONFIG.immichAlbumName);
-    if (!album) { hideLoading(); return; }
-    const r2 = await fetch(`/proxy/immich/albums/${album.id}`);
-    const data = await r2.json();
-    albumPhotos = (data.assets||[]).filter(a => a.type==='IMAGE').map(a => a.id);
-    albumPhotos.sort(() => Math.random() - 0.5);
-    bgPhotos = [...albumPhotos].sort(() => Math.random() - 0.5);
-    if (albumPhotos.length) { setInfoBg(bgPhotos[0]); paintSlide('slide-a', getThumbUrl(albumPhotos[0])); }
+    let photos = [];
+    if (CONFIG.slideshow.onThisDay) photos = await loadMemories();
+    if (!photos.length) photos = await loadAlbum();   // fall back to the album
+    albumPhotos = photos.sort(() => Math.random() - 0.5);
+    bgPhotos = albumPhotos.map(p => p.id).sort(() => Math.random() - 0.5);
+    if (albumPhotos.length) {
+      setInfoBg(bgPhotos[0]);
+      paintSlide('slide-a', albumPhotos[0]);
+      restartKenBurns('slide-a');
+      showCaption(albumPhotos[0]);
+    }
   } catch(e) { console.error('Immich error:', e); }
   hideLoading();
 }
@@ -443,24 +507,35 @@ async function loadImmich() {
 function hideLoading() { const el = document.getElementById('loading'); el.style.opacity = '0'; setTimeout(() => el.style.display = 'none', 1000); }
 
 let slideActive = 'a';
-function paintSlide(layerId, url) {
+function paintSlide(layerId, asset) {
   const layer = document.getElementById(layerId);
-  layer.querySelector('.slide-fill').style.backgroundImage = `url(${url})`;
-  layer.querySelector('.slide-photo').style.backgroundImage = `url(${url})`;
+  layer.querySelector('.slide-fill').style.backgroundImage = `url(${getThumbUrl(asset.id)})`;
+  layer.querySelector('.slide-photo').style.backgroundImage = `url(${getPhotoUrl(asset.id)})`;
 }
-function showSlide(url) {
+// Restart the Ken Burns animation on a layer's photo (no-op when disabled).
+function restartKenBurns(layerId) {
+  const photo = document.getElementById(layerId).querySelector('.slide-photo');
+  if (!CONFIG.slideshow.kenBurns) { photo.style.animation = 'none'; return; }
+  photo.style.transformOrigin = `${30 + Math.random() * 40}% ${30 + Math.random() * 40}%`;
+  photo.style.animation = 'none';
+  void photo.offsetWidth;   // force reflow so the animation restarts
+  photo.style.animation = `kenburns ${Math.round(CONFIG.slideInterval / 1000) + 2}s ease-out forwards`;
+}
+function showSlide(asset) {
   const incoming = slideActive === 'a' ? 'slide-b' : 'slide-a';
   const outgoing = slideActive === 'a' ? 'slide-a' : 'slide-b';
-  paintSlide(incoming, url);
+  paintSlide(incoming, asset);
+  restartKenBurns(incoming);
   document.getElementById(incoming).style.opacity = '1';
   document.getElementById(outgoing).style.opacity = '0';
+  showCaption(asset);
   slideActive = slideActive === 'a' ? 'b' : 'a';
 }
 
 function nextSlide() {
   if (!albumPhotos.length) return;
   slideIndex = (slideIndex+1)%albumPhotos.length;
-  showSlide(getThumbUrl(albumPhotos[slideIndex]));
+  showSlide(albumPhotos[slideIndex]);
 }
 
 let progressRaf = null, progressStart = null;
@@ -478,7 +553,9 @@ async function bootstrap() {
   // Pull live settings (album name + timings) from the server before starting.
   try {
     const c = await fetch('/api/client-config').then(r => r.json());
+    const ss = c.slideshow || {};
     Object.assign(CONFIG, c);
+    CONFIG.slideshow = Object.assign({ kenBurns: false, onThisDay: false, captions: false, highRes: false }, ss);
   } catch (e) {
     console.warn('client-config load failed, using defaults:', e);
   }

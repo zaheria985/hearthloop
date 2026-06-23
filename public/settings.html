@@ -62,6 +62,11 @@
     padding: 0 15px; cursor: pointer; font-size: 20px; line-height: 1;
   }
   .cal-remove:hover { opacity: 1; background: rgba(255,123,114,0.15); }
+  label.check {
+    display: flex; align-items: center; gap: 11px;
+    margin: 12px 0; font-size: 15px; opacity: 0.9; cursor: pointer; letter-spacing: 0;
+  }
+  label.check input { width: 18px; height: 18px; flex: none; cursor: pointer; accent-color: #fff; }
   #status { font-size: 14px; opacity: 0; transition: opacity 0.3s; }
   #status.show { opacity: 1; }
   #status.ok { color: #7ee787; }
@@ -133,6 +138,14 @@
       </div>
     </fieldset>
 
+    <fieldset>
+      <legend>Slideshow extras</legend>
+      <label class="check"><input type="checkbox" id="ss_kenBurns"> Ken Burns pan &amp; zoom <span class="hint">— slow cinematic motion on each photo</span></label>
+      <label class="check"><input type="checkbox" id="ss_onThisDay"> "On This Day" memories <span class="hint">— photos from today's date in past years</span></label>
+      <label class="check"><input type="checkbox" id="ss_captions"> Date &amp; place captions <span class="hint">— faint corner label per photo</span></label>
+      <label class="check"><input type="checkbox" id="ss_highRes"> Sharper full-resolution images <span class="hint">— crisper on big screens, more bandwidth</span></label>
+    </fieldset>
+
     <div class="actions">
       <button type="submit" id="saveBtn">Save settings</button>
       <span id="status"></span>
@@ -161,6 +174,14 @@ const FIELDS = {
 };
 const MS_FIELDS = new Set(['disp_infoDuration','disp_slideshowDuration','disp_slideInterval','disp_bgChangeInterval']);
 const NUM_FIELDS = new Set(['wx_latitude','wx_longitude']);
+
+// Checkbox id -> key under config.slideshow.
+const CHECKS = {
+  ss_kenBurns:  'kenBurns',
+  ss_onThisDay: 'onThisDay',
+  ss_captions:  'captions',
+  ss_highRes:   'highRes',
+};
 
 function setStatus(msg, kind) {
   const el = $('status');
@@ -211,6 +232,8 @@ async function load() {
     const urls = Array.isArray(cal.icalUrls) ? cal.icalUrls
       : (cal.icalUrl ? [cal.icalUrl] : []);
     setCalRows(urls);
+    const ss = cfg.slideshow || {};
+    for (const [id, key] of Object.entries(CHECKS)) $(id).checked = !!ss[key];
   } catch (e) {
     setStatus('Could not load current settings', 'err');
     setCalRows([]);
@@ -228,6 +251,8 @@ $('form').addEventListener('submit', async (e) => {
     cfg[sec][key] = v;
   }
   cfg.calendar.icalUrls = getCalUrls();
+  cfg.slideshow = {};
+  for (const [id, key] of Object.entries(CHECKS)) cfg.slideshow[key] = $(id).checked;
   $('saveBtn').disabled = true;
   setStatus('Saving…', '');
   try {

@@ -131,12 +131,43 @@ app.get('/proxy/immich/thumbnail/:id', async (req, res) => {
   }
 });
 
+// ── Immich proxy — full-resolution original ───────────────
+app.get('/proxy/immich/original/:id', async (req, res) => {
+  try {
+    const r = await fetch(`${imm().base}/api/assets/${req.params.id}/original`, {
+      headers: { 'x-api-key': imm().apiKey },
+    });
+    res.set('Content-Type', r.headers.get('content-type') || 'image/jpeg');
+    r.body.pipe(res);
+  } catch (e) {
+    console.error('Immich original error:', e);
+    res.status(500).send('original failed');
+  }
+});
+
+// ── Immich proxy — "on this day" memories ─────────────────
+// Returns the memory-lane groups for today. Tolerates older/newer Immich:
+// if the endpoint is missing, returns an empty list so the client falls back.
+app.get('/proxy/immich/memories', async (req, res) => {
+  try {
+    const r = await fetch(`${imm().base}/api/memories`, {
+      headers: { 'x-api-key': imm().apiKey },
+    });
+    if (!r.ok) return res.json([]);
+    res.json(await r.json());
+  } catch (e) {
+    console.error('Immich memories error:', e);
+    res.json([]);
+  }
+});
+
 // ── Config API (for the settings page + the display) ──────
 // Non-secret values the dashboard frontend needs at load time.
 app.get('/api/client-config', (req, res) => {
   res.json({
     immichAlbumName: imm().albumName || '',
     ...(config.display || {}),
+    slideshow: config.slideshow || {},
   });
 });
 

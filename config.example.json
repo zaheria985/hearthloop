@@ -21,5 +21,11 @@
     "slideshowDuration": 180000,
     "slideInterval": 8000,
     "bgChangeInterval": 30000
+  },
+  "slideshow": {
+    "kenBurns": false,
+    "onThisDay": false,
+    "captions": false,
+    "highRes": false
   }
 }
