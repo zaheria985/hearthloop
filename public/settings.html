@@ -49,6 +49,19 @@
   }
   button:hover { opacity: 0.85; }
   button:disabled { opacity: 0.4; cursor: default; }
+  button.secondary {
+    background: rgba(255,255,255,0.06); color: #eee;
+    border: 1px solid rgba(255,255,255,0.18); padding: 9px 16px; font-size: 14px;
+  }
+  button.secondary:hover { opacity: 1; background: rgba(255,255,255,0.12); }
+  .cal-row { display: flex; gap: 8px; margin-bottom: 8px; }
+  .cal-row input { flex: 1; }
+  .cal-remove {
+    background: rgba(255,255,255,0.06); color: #ff7b72;
+    border: 1px solid rgba(255,255,255,0.14); border-radius: 7px;
+    padding: 0 15px; cursor: pointer; font-size: 20px; line-height: 1;
+  }
+  .cal-remove:hover { opacity: 1; background: rgba(255,123,114,0.15); }
   #status { font-size: 14px; opacity: 0; transition: opacity 0.3s; }
   #status.show { opacity: 1; }
   #status.ok { color: #7ee787; }
@@ -74,9 +87,10 @@
     </fieldset>
 
     <fieldset>
-      <legend>Calendar</legend>
-      <label>Published iCal (.ics) URL</label>
-      <input id="cal_icalUrl" placeholder="https://.../published.ics">
+      <legend>Calendars</legend>
+      <div class="hint" style="margin-bottom:12px">Add one or more published iCal (.ics) feed URLs — all of their events are merged into the agenda.</div>
+      <div id="cal-list"></div>
+      <button type="button" id="addCal" class="secondary">+ Add calendar</button>
     </fieldset>
 
     <fieldset>
@@ -135,7 +149,6 @@ const FIELDS = {
   immich_base:        ['immich', 'base'],
   immich_apiKey:      ['immich', 'apiKey'],
   immich_albumName:   ['immich', 'albumName'],
-  cal_icalUrl:        ['calendar', 'icalUrl'],
   wx_latitude:        ['weather', 'latitude'],
   wx_longitude:       ['weather', 'longitude'],
   wx_temperatureUnit: ['weather', 'temperatureUnit'],
@@ -156,6 +169,35 @@ function setStatus(msg, kind) {
   if (kind === 'ok') setTimeout(() => el.classList.remove('show'), 3000);
 }
 
+// ── Calendar list (dynamic add/remove rows) ──
+function addCalRow(value = '') {
+  const row = document.createElement('div');
+  row.className = 'cal-row';
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.placeholder = 'https://.../calendar.ics';
+  input.value = value;
+  const rm = document.createElement('button');
+  rm.type = 'button';
+  rm.className = 'cal-remove';
+  rm.textContent = '×';
+  rm.title = 'Remove this calendar';
+  rm.addEventListener('click', () => row.remove());
+  row.append(input, rm);
+  $('cal-list').appendChild(row);
+}
+function setCalRows(urls) {
+  $('cal-list').innerHTML = '';
+  if (!urls.length) addCalRow();
+  else urls.forEach(addCalRow);
+}
+function getCalUrls() {
+  return Array.from(document.querySelectorAll('#cal-list .cal-row input'))
+    .map(i => i.value.trim())
+    .filter(Boolean);
+}
+$('addCal').addEventListener('click', () => addCalRow());
+
 async function load() {
   try {
     const cfg = await fetch('/api/config').then(r => r.json());
@@ -165,8 +207,13 @@ async function load() {
       if (MS_FIELDS.has(id)) v = Math.round(v / 1000);
       $(id).value = v;
     }
+    const cal = cfg.calendar || {};
+    const urls = Array.isArray(cal.icalUrls) ? cal.icalUrls
+      : (cal.icalUrl ? [cal.icalUrl] : []);
+    setCalRows(urls);
   } catch (e) {
     setStatus('Could not load current settings', 'err');
+    setCalRows([]);
   }
 }
 
@@ -180,6 +227,7 @@ $('form').addEventListener('submit', async (e) => {
     else if (NUM_FIELDS.has(id)) v = Number(raw);
     cfg[sec][key] = v;
   }
+  cfg.calendar.icalUrls = getCalUrls();
   $('saveBtn').disabled = true;
   setStatus('Saving…', '');
   try {

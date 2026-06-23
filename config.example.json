@@ -5,7 +5,9 @@
     "albumName": "Dashboard"
   },
   "calendar": {
-    "icalUrl": "https://example.com/path/to/your/published.ics"
+    "icalUrls": [
+      "https://example.com/path/to/your/published.ics"
+    ]
   },
   "weather": {
     "latitude": 40.7128,

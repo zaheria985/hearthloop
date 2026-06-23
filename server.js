@@ -56,15 +56,34 @@ app.get('/proxy/weather', async (req, res) => {
   }
 });
 
+// Resolve the configured calendar feeds — supports an `icalUrls` array and
+// falls back to the legacy single `icalUrl` string.
+function icalUrls() {
+  const c = config.calendar || {};
+  if (Array.isArray(c.icalUrls)) return c.icalUrls.filter(Boolean);
+  if (c.icalUrl) return [c.icalUrl];
+  return [];
+}
+
 // ── iCal proxy ────────────────────────────────────────────
+// Fetches every configured feed and concatenates them. The client parser walks
+// all VEVENT blocks regardless of file boundaries, so merged feeds Just Work.
+// One failing feed is skipped rather than breaking the rest.
 app.get('/proxy/ical', async (req, res) => {
   try {
-    const url = (config.calendar || {}).icalUrl;
-    if (!url) return res.status(500).send('no ical url configured');
-    const r = await fetch(url);
-    const text = await r.text();
+    const urls = icalUrls();
+    if (!urls.length) return res.status(500).send('no ical url configured');
+    const texts = await Promise.all(urls.map(async (u) => {
+      try {
+        const r = await fetch(u);
+        return await r.text();
+      } catch (e) {
+        console.error('iCal fetch error for', u, e);
+        return '';
+      }
+    }));
     res.set('Content-Type', 'text/calendar');
-    res.send(text);
+    res.send(texts.join('\n'));
   } catch (e) {
     console.error('iCal proxy error:', e);
     res.status(500).send('ical fetch failed');

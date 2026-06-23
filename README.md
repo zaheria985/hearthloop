@@ -53,7 +53,7 @@ You can edit settings two ways:
 | `immich`   | `base`             | Immich server base URL                             |
 |            | `apiKey`           | Immich API key (server-side only)                  |
 |            | `albumName`        | Album to show as the slideshow                     |
-| `calendar` | `icalUrl`          | Published iCal (`.ics`) feed URL                   |
+| `calendar` | `icalUrls`         | Array of published iCal (`.ics`) feed URLs; all events are merged into the agenda |
 | `weather`  | `latitude`/`longitude` | Location for the [Open-Meteo](https://open-meteo.com) forecast |
 |            | `temperatureUnit`  | `fahrenheit` or `celsius`                          |
 |            | `windSpeedUnit`    | `mph`, `kmh`, `ms`, or `kn`                        |
