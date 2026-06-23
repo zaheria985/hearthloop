@@ -1,0 +1,16 @@
+services:
+  hearthloop:
+    # Build locally, or swap for the published image once it's on GHCR:
+    # image: ghcr.io/OWNER/hearthloop:latest
+    build: .
+    image: hearthloop:latest
+    container_name: hearthloop
+    ports:
+      - "3000:3000"
+    volumes:
+      # Persists the live settings (config.json) outside the container.
+      - ./data:/config
+    environment:
+      - PORT=3000
+      - CONFIG_DIR=/config
+    restart: unless-stopped

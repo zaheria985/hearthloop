@@ -6,16 +6,35 @@ weather, and an upcoming-events agenda) and a **photo slideshow** pulled from an
 [Immich](https://immich.app) album. A small Express server proxies the weather,
 calendar, and photo requests so your API keys stay server-side.
 
-## Quick start
+## Quick start (Docker Compose)
+
+```bash
+docker compose up -d --build
+```
+
+This builds the image, starts it on port `3000`, and mounts `./data` to `/config`
+so your settings persist across rebuilds.
+
+Open the dashboard at <http://localhost:3000> and the settings editor at
+<http://localhost:3000/settings.html>. On first run the app boots with the
+placeholder values from `config.example.json` — open the settings page, fill in
+your details, and Save. That writes `config.json` into the mounted `/config`
+volume.
+
+### Run with the prebuilt image
+
+Pushes to `main` publish an image to GHCR via GitHub Actions. To use it instead
+of building locally, set `image:` in `docker-compose.yml` to
+`ghcr.io/OWNER/hearthloop:latest` (replace `OWNER`) and drop the `build:` line,
+then `docker compose pull && docker compose up -d`.
+
+## Quick start (local Node, no Docker)
 
 ```bash
 npm install
-cp config.example.json config.json   # then edit, or use the settings page below
+cp config.example.json config.json   # then edit, or use the settings page
 npm start
 ```
-
-Open the dashboard at <http://localhost:3000> and the settings editor at
-<http://localhost:3000/settings.html>.
 
 ## Configuration
 
@@ -47,10 +66,17 @@ You can edit settings two ways:
 (The settings page shows the `display` values in **seconds** for convenience and
 converts to milliseconds on save.)
 
-## Running as a service
+## Environment variables
 
-`hearthloop.service` is a sample systemd unit. Adjust `WorkingDirectory` /
-`ExecStart` to wherever you deploy, then:
+| Var          | Default     | Meaning                                          |
+|--------------|-------------|--------------------------------------------------|
+| `PORT`       | `3000`      | Port the server listens on.                      |
+| `CONFIG_DIR` | app dir     | Directory holding the live `config.json`. Set to `/config` in Docker so settings persist on a mounted volume. |
+
+## Running as a service (bare metal)
+
+If you'd rather not use Docker, `hearthloop.service` is a sample systemd unit.
+Adjust `WorkingDirectory` / `ExecStart` to wherever you deploy, then:
 
 ```bash
 sudo cp hearthloop.service /etc/systemd/system/
@@ -62,5 +88,6 @@ sudo systemctl enable --now hearthloop
 - `server.js` — Express server: serves the UI and proxies weather / iCal / Immich.
 - `public/index.html` — the dashboard display.
 - `public/settings.html` — the settings editor.
-- `config.json` — your settings (gitignored).
-- `config.example.json` — template to copy.
+- `config.json` — your settings (gitignored; lives in `CONFIG_DIR`).
+- `config.example.json` — template the app falls back to on first run.
+- `Dockerfile` / `docker-compose.yml` — container build + run.

@@ -5,7 +5,12 @@ const fs = require('fs');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const CONFIG_PATH = path.join(__dirname, 'config.json');
+
+// CONFIG_DIR is where the live, writable config.json lives. In Docker this is a
+// mounted volume (default /config) so settings survive container re-creation.
+// Locally it defaults to the app directory.
+const CONFIG_DIR = process.env.CONFIG_DIR || __dirname;
+const CONFIG_PATH = path.join(CONFIG_DIR, 'config.json');
 const EXAMPLE_PATH = path.join(__dirname, 'config.example.json');
 
 // ── Config loading ─────────────────────────────────────────
@@ -127,6 +132,7 @@ app.post('/api/config', (req, res) => {
       return res.status(400).json({ error: 'invalid config' });
     }
     config = incoming;
+    fs.mkdirSync(CONFIG_DIR, { recursive: true });
     fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2));
     res.json({ ok: true });
   } catch (e) {
