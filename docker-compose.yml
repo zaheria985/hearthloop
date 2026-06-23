@@ -1,7 +1,7 @@
 services:
   hearthloop:
     # Build locally, or swap for the published image once it's on GHCR:
-    # image: ghcr.io/OWNER/hearthloop:latest
+    # image: ghcr.io/zaheria985/hearthloop:latest
     build: .
     image: hearthloop:latest
     container_name: hearthloop

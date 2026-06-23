@@ -25,8 +25,8 @@ volume.
 
 Pushes to `main` publish an image to GHCR via GitHub Actions. To use it instead
 of building locally, set `image:` in `docker-compose.yml` to
-`ghcr.io/OWNER/hearthloop:latest` (replace `OWNER`) and drop the `build:` line,
-then `docker compose pull && docker compose up -d`.
+`ghcr.io/zaheria985/hearthloop:latest` and drop the `build:` line, then
+`docker compose pull && docker compose up -d`.
 
 ## Quick start (local Node, no Docker)
 
